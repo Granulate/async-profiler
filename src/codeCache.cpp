@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <cassert>
 #include "codeCache.h"
 
 
@@ -77,9 +78,11 @@ NativeCodeCache::NativeCodeCache(const char* name, const void* min_address, cons
     _name = strdup(name);
     _min_address = min_address;
     _max_address = max_address;
+    _build_id = NULL;
 }
 
 NativeCodeCache::~NativeCodeCache() {
+    free(_build_id);
     for (int i = 0; i < _count; i++) {
         free(_blobs[i]._method);
     }
@@ -104,7 +107,19 @@ void NativeCodeCache::sort() {
     if (_max_address == NO_MAX_ADDRESS) _max_address = _blobs[_count - 1]._end;
 }
 
-const char* NativeCodeCache::binarySearch(const void* address) {
+void NativeCodeCache::setBuildId(const char *build_id, int build_id_len) {
+    _build_id = (char*)malloc(build_id_len * 2 + 1);
+    if (_build_id) {
+        char *p = _build_id;
+        for (int i = 0; i < build_id_len; i++) {
+            p += sprintf(p, "%02hhx", build_id[i]);
+        }
+        // sprintf has null-terminated it for us
+        assert(p == _build_id + build_id_len * 2);
+    }
+}
+
+const char* NativeCodeCache::binarySearch(const void* address, LinearAllocator* allocator) {
     int low = 0;
     int high = _count - 1;
 
@@ -124,7 +139,19 @@ const char* NativeCodeCache::binarySearch(const void* address) {
     if (low > 0 && (_blobs[low - 1]._start == _blobs[low - 1]._end || _blobs[low - 1]._end == address)) {
         return (const char*)_blobs[low - 1]._method;
     }
-    return _name;
+
+    char buf[512];
+    // add 1 for the null terminator
+    const int n = 1 + snprintf(buf, sizeof(buf), "%s %s+%p_[bid]", _name, _build_id, (void*)((char*)address - (char*)_min_address));
+    char *allocated;
+    // if snprintf didn't overflow, and we manage to allocate a suitable buffer (from the LinearAllocator, not malloc,
+    // since this is signal context and malloc can deadlock) - then use them.
+    if (n < sizeof(buf) && (allocated = (char*)allocator->alloc(n)) != NULL) {
+        memcpy(allocated, buf, n);
+        return allocated;
+    } else {
+        return _name;
+    }
 }
 
 const void* NativeCodeCache::findSymbol(const char* name) {

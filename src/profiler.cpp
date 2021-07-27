@@ -242,7 +242,7 @@ NativeCodeCache* Profiler::findNativeLibrary(const void* address) {
 
 const char* Profiler::findNativeMethod(const void* address) {
     NativeCodeCache* lib = findNativeLibrary(address);
-    return lib == NULL ? NULL : lib->binarySearch(address);
+    return lib == NULL ? NULL : lib->binarySearch(address, _call_trace_storage.get_allocator());
 }
 
 // Make sure the top frame is Java, otherwise AsyncGetCallTrace

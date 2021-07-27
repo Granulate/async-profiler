@@ -70,6 +70,7 @@ class CallTraceStorage {
     void collectSamples(std::map<u64, CallTraceSample>& map);
 
     u32 put(int num_frames, ASGCT_CallFrame* frames, u64 counter);
+    LinearAllocator* get_allocator() { return &_allocator; }
 };
 
 #endif // _CALLTRACESTORAGE
