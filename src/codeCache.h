@@ -104,7 +104,7 @@ class NativeCodeCache : public CodeCache {
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);
-    void setBuildId(const char *build_id, int build_id_len);
+    void setBuildId(const char* build_id, int build_id_len);
 };
 
 #endif // _CODECACHE_H

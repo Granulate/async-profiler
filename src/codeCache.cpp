@@ -107,7 +107,7 @@ void NativeCodeCache::sort() {
     if (_max_address == NO_MAX_ADDRESS) _max_address = _blobs[_count - 1]._end;
 }
 
-void NativeCodeCache::setBuildId(const char *build_id, int build_id_len) {
+void NativeCodeCache::setBuildId(const char* build_id, int build_id_len) {
     _build_id = (char*)malloc(build_id_len * 2 + 1);
     if (_build_id) {
         char *p = _build_id;
