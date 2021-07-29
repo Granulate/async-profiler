@@ -139,18 +139,19 @@ const char* NativeCodeCache::binarySearch(const void* address, LinearAllocator* 
         return (const char*)_blobs[low - 1]._method;
     }
 
-    char buf[512];
-    // add 1 for the null terminator
-    const int n = 1 + snprintf(buf, sizeof(buf), "%s %s+%p_[bid]", _name, _build_id, (void*)((char*)address - (char*)_min_address));
-    char *allocated;
-    // if snprintf didn't overflow, and we manage to allocate a suitable buffer (from the LinearAllocator, not malloc,
-    // since this is signal context and malloc can deadlock) - then use them.
-    if (n < sizeof(buf) && (allocated = (char*)allocator->alloc(n)) != NULL) {
-        memcpy(allocated, buf, n);
-        return allocated;
-    } else {
-        return _name;
+    if (_build_id) {
+        char buf[512];
+        // add 1 for the null terminator
+        const int n = 1 + snprintf(buf, sizeof(buf), "%s %s+%p_[bid]", _name, _build_id, (void*)((char*)address - (char*)_min_address));
+        char *allocated;
+        // if snprintf didn't overflow, and we manage to allocate a suitable buffer (from the LinearAllocator, not malloc,
+        // since this is signal context and malloc can deadlock) - then use them.
+        if (n < sizeof(buf) && (allocated = (char*)allocator->alloc(n)) != NULL) {
+            memcpy(allocated, buf, n);
+            return allocated;
+        }
     }
+    return _name;
 }
 
 const void* NativeCodeCache::findSymbol(const char* name) {
