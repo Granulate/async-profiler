@@ -115,7 +115,6 @@ void NativeCodeCache::setBuildId(const char* build_id, int build_id_len) {
             p += sprintf(p, "%02hhx", build_id[i]);
         }
         // sprintf has null-terminated it for us
-        assert(p == _build_id + build_id_len * 2);
     }
 }
 
