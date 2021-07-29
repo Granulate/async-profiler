@@ -100,7 +100,7 @@ class NativeCodeCache : public CodeCache {
 
     void add(const void* start, int length, const char* name, bool update_bounds = false);
     void sort();
-    const char* binarySearch(const void* address, LinearAllocator* allocator);
+    const char* binarySearch(const void* address, LinearAllocator* allocator, bool _add_build_ids);
     const void* findSymbol(const char* name);
     const void* findSymbolByPrefix(const char* prefix);
     const void* findSymbolByPrefix(const char* prefix, int prefix_len);

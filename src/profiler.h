@@ -96,6 +96,7 @@ class Profiler {
     CStack _cstack;
     bool _add_thread_frame;
     bool _update_thread_names;
+    bool _add_build_ids;
     volatile bool _thread_events_state;
 
     SpinLock _jit_lock;

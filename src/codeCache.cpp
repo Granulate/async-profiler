@@ -118,7 +118,7 @@ void NativeCodeCache::setBuildId(const char* build_id, int build_id_len) {
     }
 }
 
-const char* NativeCodeCache::binarySearch(const void* address, LinearAllocator* allocator) {
+const char* NativeCodeCache::binarySearch(const void* address, LinearAllocator* allocator, bool _add_build_ids) {
     int low = 0;
     int high = _count - 1;
 
@@ -139,7 +139,7 @@ const char* NativeCodeCache::binarySearch(const void* address, LinearAllocator* 
         return (const char*)_blobs[low - 1]._method;
     }
 
-    if (_build_id) {
+    if (_add_build_ids && _build_id) {
         char buf[512];
         // add 1 for the null terminator
         const int n = 1 + snprintf(buf, sizeof(buf), "%s %s+%p_[bid]", _name, _build_id, (void*)((char*)address - (char*)_min_address));
