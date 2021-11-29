@@ -126,7 +126,7 @@ ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -o $@ -xc++ - $(LIBS)
 else
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -static-libstdc++ -o $@ $(SOURCES) $(LIBS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" $(INCLUDES) -fPIC -shared -static-libstdc++ -static-libgcc -o $@ $(SOURCES) $(LIBS)
 endif
 
 build/$(API_JAR): $(API_SOURCES)
