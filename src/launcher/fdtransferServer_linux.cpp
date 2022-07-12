@@ -298,6 +298,9 @@ bool FdTransferServer::runOnce(int pid, const char *path) {
 
     // CLONE_NEWPID affects children only - so we fork here.
     if (fork() == 0) {
+        close(STDIN_FILENO);
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
         return acceptPeer(&nspid) && serveRequests(nspid);
     } else {
         // Exit now, let our caller continue.
