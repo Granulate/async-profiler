@@ -312,6 +312,9 @@ static int single_pid_server(int pid, const char *path) {
 
     // CLONE_NEWPID affects children only - so we fork here.
     if (0 == fork()) {
+        close(STDIN_FILENO);
+        close(STDOUT_FILENO);
+        close(STDERR_FILENO);
         return FdTransferServer::acceptPeer(&nspid) && FdTransferServer::serveRequests(nspid) ? 0 : 1;
     } else {
         // Exit now, let our caller continue.
