@@ -121,7 +121,10 @@ build/$(LAUNCHER): src/launcher/* src/jattach/* src/fdtransfer.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -DPROFILER_VERSION=\"$(PROFILER_VERSION)\" -o $@ src/launcher/*.cpp src/jattach/*.c
 	strip $@
 
-PROFILER_STATIC_FLAGS=-static-libstdc++ -static-libgcc
+PROFILER_STATIC_FLAGS=-static-libgcc
+ifeq ($(OS_TAG),linux-musl)
+  PROFILER_STATIC_FLAGS+= -static-libstdc++
+endif
 
 build/$(LIB_PROFILER): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
