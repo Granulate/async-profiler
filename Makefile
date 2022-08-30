@@ -124,7 +124,11 @@ $(PACKAGE_DIR): build/$(LIB_PROFILER) build/$(JATTACH) $(FDTRANSFER_BIN) \
 build:
 	mkdir -p build
 
-PROFILER_STATIC_FLAGS=-static-libstdc++ -static-libgcc
+PROFILER_STATIC_FLAGS=-static-libgcc
+ifeq ($(OS_TAG),linux-musl)
+  PROFILER_STATIC_FLAGS+= -static-libstdc++
+endif
+
 build/$(LIB_PROFILER_SO): $(SOURCES) $(HEADERS) $(RESOURCES) $(JAVA_HELPER_CLASSES)
 ifeq ($(MERGE),true)
 	for f in src/*.cpp; do echo '#include "'$$f'"'; done |\
