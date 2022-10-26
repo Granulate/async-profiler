@@ -31,6 +31,10 @@ size_t NativeFunc::usedMemory(const char* name) {
 CodeCache::CodeCache(const char* name, short lib_index, bool imports_patchable,
                      const void* min_address, const void* max_address) {
     _name = NativeFunc::create(name, -1);
+    char *tmp = (char*)malloc(strlen(name) + 3);
+    snprintf(tmp, strlen(name) + 3, "(%s)", name);
+    _lib_symbol = NativeFunc::create(tmp, -1);
+    free(tmp);
     _lib_index = lib_index;
     _min_address = min_address;
     _max_address = max_address;
@@ -55,6 +59,7 @@ CodeCache::~CodeCache() {
     for (int i = 0; i < _count; i++) {
         NativeFunc::destroy(_blobs[i]._name);
     }
+    NativeFunc::destroy(_lib_symbol);
     NativeFunc::destroy(_name);
     delete[] _blobs;
     free(_dwarf_table);
@@ -155,7 +160,8 @@ const char* CodeCache::binarySearch(const void* address) {
     if (low > 0 && (_blobs[low - 1]._start == _blobs[low - 1]._end || _blobs[low - 1]._end == address)) {
         return _blobs[low - 1]._name;
     }
-    return _name;
+
+    return _lib_symbol;
 }
 
 const void* CodeCache::findSymbol(const char* name) {
