@@ -87,6 +87,7 @@ class FrameDesc;
 class CodeCache {
   protected:
     char* _name;
+    char* _lib_symbol;
     short _lib_index;
     const void* _min_address;
     const void* _max_address;
