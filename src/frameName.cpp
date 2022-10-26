@@ -133,7 +133,7 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
         char* demangled = Demangle::demangle(name);
         if (demangled != NULL) {
             if (lib_name != NULL) {
-                _str.assign(lib_name).append("`").append(demangled);
+                _str.assign(demangled).append(" (").append(lib_name).append(")");
             } else {
                 _str.assign(demangled);
             }
@@ -143,7 +143,7 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
     }
 
     if (lib_name != NULL) {
-        return _str.assign(lib_name).append("`").append(name).c_str();
+        return _str.assign(name).append(" (").append(lib_name).append(")").c_str();
     } else {
         return name;
     }
