@@ -141,7 +141,7 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
         char* demangled = abi::__cxa_demangle(name, NULL, NULL, &status);
         if (demangled != NULL) {
             if (lib_name != NULL) {
-                snprintf(_buf, sizeof(_buf) - 1, "%s`%s", lib_name, demangled);
+                snprintf(_buf, sizeof(_buf) - 1, "%s (%s)", demangled, lib_name);
             } else {
                 strncpy(_buf, demangled, sizeof(_buf) - 1);
             }
@@ -151,7 +151,7 @@ const char* FrameName::decodeNativeSymbol(const char* name) {
     }
 
     if (lib_name != NULL) {
-        snprintf(_buf, sizeof(_buf) - 1, "%s`%s", lib_name, name);
+        snprintf(_buf, sizeof(_buf) - 1, "%s (%s)", name, lib_name);
         return _buf;
     } else {
         return name;
