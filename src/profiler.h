@@ -201,6 +201,7 @@ class Profiler {
     Error stop();
     Error flushJfr();
     Error dump(std::ostream& out, Arguments& args);
+    void logUsedMemory();
     void printUsedMemory(std::ostream& out);
     void switchThreadEvents(jvmtiEventMode mode);
     int convertNativeTrace(int native_frames, const void** callchain, ASGCT_CallFrame* frames);

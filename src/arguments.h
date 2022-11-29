@@ -174,6 +174,8 @@ class Arguments {
     const char* _title;
     double _minwidth;
     bool _reverse;
+    // Granulate Extra
+    bool _log_meminfo_on_dump;
 
     Arguments(bool persistent = false) :
         _buf(NULL),
@@ -218,7 +220,8 @@ class Arguments {
         _end(NULL),
         _title(NULL),
         _minwidth(0),
-        _reverse(false) {
+        _reverse(false),
+        _log_meminfo_on_dump(false) {
     }
 
     ~Arguments();

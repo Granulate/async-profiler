@@ -350,6 +350,9 @@ Error Arguments::parse(const char* args) {
             CASE("reverse")
                 _reverse = true;
 
+            CASE("meminfolog")
+                _log_meminfo_on_dump = true;
+
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
         }

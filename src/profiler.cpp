@@ -1528,6 +1528,10 @@ Error Profiler::runInternal(Arguments& args, std::ostream& out) {
         }
         case ACTION_DUMP: {
             Error error = dump(out, args);
+            if (args._log_meminfo_on_dump) {
+                logUsedMemory();
+            }
+
             if (error) {
                 return error;
             }
@@ -1647,4 +1651,10 @@ void Profiler::shutdown(Arguments& args) {
     }
 
     _state = TERMINATED;
+}
+
+void Profiler::logUsedMemory() {
+    std::ostringstream stringStream;
+    printUsedMemory(stringStream);
+    Log::info(stringStream.str().c_str());
 }
