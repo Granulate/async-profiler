@@ -284,18 +284,21 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
 
         default: {
             const char* type_suffix = typeSuffix(FrameType::decode(frame.bci));
+            char bci_buf[16];
+            snprintf(bci_buf, sizeof(bci_buf), "%d", frame.bci & 0xffff);
 
             JMethodCache::iterator it = _cache.lower_bound(frame.method_id);
             if (it != _cache.end() && it->first == frame.method_id) {
                 it->second[0] = _cache_epoch;
                 if (type_suffix != NULL) {
-                    return _str.assign(it->second, 1, std::string::npos).append(type_suffix).c_str();
+                    return _str.assign(it->second, 1, std::string::npos).append("@").append(bci_buf).append(type_suffix).c_str();
                 }
                 return it->second.c_str() + 1;
             }
 
             javaMethodName(frame.method_id);
             _cache.insert(it, JMethodCache::value_type(frame.method_id, std::string(1, _cache_epoch) + _str));
+            _str.append("@").append(bci_buf);
             if (type_suffix != NULL) {
                 _str += type_suffix;
             }
