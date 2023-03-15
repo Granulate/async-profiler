@@ -390,6 +390,9 @@ Error Arguments::parse(const char* args) {
             CASE("meminfolog")
                 _log_meminfo_on_dump = true;
 
+            CASE("includemm")
+                _includemm = true;
+
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
         }

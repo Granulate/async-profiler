@@ -75,6 +75,7 @@ class FrameName {
     Mutex& _thread_names_lock;
     ThreadMap& _thread_names;
     locale_t _saved_locale;
+    bool _includemm;
 
     void buildFilter(std::vector<Matcher>& vector, const char* base, int offset);
     const char* decodeNativeSymbol(const char* name);

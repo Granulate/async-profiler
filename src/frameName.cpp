@@ -28,6 +28,24 @@ static inline bool isDigit(char c) {
 }
 
 
+// Based on: https://docs.oracle.com/javase/specs/jvms/se7/html/jvms-4.html#:~:text=Table%C2%A04.5.%C2%A0Method%20access%20and%20property%20flags
+// Good practice order from: https://checkstyle.sourceforge.io/config_modifier.html#ModifierOrder
+const static std::pair<int, std::string> access_flags [] = {
+    std::make_pair(0x0001, "public"),
+    std::make_pair(0x0002, "private"),
+    std::make_pair(0x0004, "protected"),
+    std::make_pair(0x0400, "abstract"),
+    std::make_pair(0x0008, "static"),
+    std::make_pair(0x0010, "final"),
+    std::make_pair(0x0020, "synchronized"),
+    std::make_pair(0x0100, "native"),
+    std::make_pair(0x0800, "strict"),
+    std::make_pair(0x0040, "bridge"),
+    std::make_pair(0x0080, "varargs"),
+    std::make_pair(0x1000, "synthetic"),
+};
+
+
 Matcher::Matcher(const char* pattern) {
     if (pattern[0] == '*') {
         _type = MATCH_ENDS_WITH;
@@ -95,7 +113,7 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
 {
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
-
+    _includemm = args._includemm;
     buildFilter(_include, args._buf, args._include);
     buildFilter(_exclude, args._buf, args._exclude);
 
@@ -167,6 +185,7 @@ void FrameName::javaMethodName(jmethodID method) {
     char* class_name = NULL;
     char* method_name = NULL;
     char* method_sig = NULL;
+    jint modifiers = 0;
 
     jvmtiEnv* jvmti = VM::jvmti();
     jvmtiError err;
@@ -176,6 +195,16 @@ void FrameName::javaMethodName(jmethodID method) {
         (err = jvmti->GetClassSignature(method_class, &class_name, NULL)) == 0) {
         // Trim 'L' and ';' off the class descriptor like 'Ljava/lang/Object;'
         javaClassName(class_name + 1, strlen(class_name) - 2, _style);
+        if (_includemm) {
+            jvmti->GetMethodModifiers(method, &modifiers);
+            std::string modifiers_to_append = "";
+            for (int i=0; i<(sizeof(access_flags) / sizeof(access_flags[0])); i++) {
+                if (modifiers & access_flags[i].first) {
+                    modifiers_to_append.append(access_flags[i].second + " ");
+                }
+            }
+            _str.insert(0, modifiers_to_append);
+        }
         _str.append(".").append(method_name);
         if (_style & STYLE_SIGNATURES) {
             if (_style & STYLE_NO_SEMICOLON) {

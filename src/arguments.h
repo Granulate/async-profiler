@@ -187,6 +187,7 @@ class Arguments {
     bool _sched;
     bool _live;
     bool _fdtransfer;
+    bool _includemm;
     const char* _fdtransfer_path;
     int _style;
     StackWalkFeatures _features;
@@ -256,7 +257,8 @@ class Arguments {
         _title(NULL),
         _minwidth(0),
         _reverse(false),
-        _log_meminfo_on_dump(false) {
+        _log_meminfo_on_dump(false),
+        _includemm(false) {
     }
 
     ~Arguments();
