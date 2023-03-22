@@ -125,9 +125,7 @@ build:
 	mkdir -p build
 
 PROFILER_FLAGS=-static-libgcc
-ifeq ($(OS_TAG),linux-musl)
-  PROFILER_FLAGS+= -static-libstdc++
-endif
+PROFILER_FLAGS+= -static-libstdc++
 
 # On x86_64 glibc (not musl), build against compat-glibc
 # see https://centos.pkgs.org/7/centos-x86_64/compat-glibc-2.12-4.el7.centos.x86_64.rpm.html
