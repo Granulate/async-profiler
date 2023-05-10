@@ -249,7 +249,7 @@ bool FdTransferServer::sendFd(int fd, struct fd_response *resp, size_t resp_size
     return true;
 }
 
-bool FdTransferServer::runOnce(int pid, const char *path) {
+bool FdTransferServer::runOnce(int pid, const char *path, unsigned int timeout) {
     // get its nspid prior to moving to its PID namespace.
     int nspid;
     uid_t target_uid;
@@ -276,7 +276,7 @@ bool FdTransferServer::runOnce(int pid, const char *path) {
         }
     }
 
-    if (!bindServer(&sun, addrlen, 30)) {
+    if (!bindServer(&sun, addrlen, timeout)) {
         return false;
     }
 

@@ -41,6 +41,8 @@ static const char USAGE_STRING[] =
     "  jcmd              run JVM diagnostic command (jattach action)\n"
     "  collect           collect profile for the specified period of time\n"
     "                    and then stop (default action)\n"
+    "  fdtransfer        start fdtransfer to serve perf requests on behalf of profiled process\n"
+    "\n"
     "Options:\n"
     "  -e event          profiling event: cpu|alloc|lock|cache-misses etc.\n"
     "  -d duration       run profiling for <duration> seconds\n"
@@ -81,6 +83,7 @@ static const char USAGE_STRING[] =
     "  --jfrsync config  synchronize profiler with JFR recording\n"
     "  --fdtransfer      use fdtransfer to serve perf requests\n"
     "                    from the non-privileged target\n"
+    "  --fd-path string  socket path for fdtransfer to bind to\n"
     "\n"
     "<pid> is a numeric process ID of the target JVM\n"
     "      or 'jps' keyword to find running JVM automatically\n"
@@ -91,6 +94,7 @@ static const char USAGE_STRING[] =
     "         " APP_BINARY " stop -o flat jps\n"
     "         " APP_BINARY " -d 5 -e alloc MyAppName\n";
 
+static const unsigned int DEFAULT_FDTRANSFER_TIMEOUT = 30;
 
 extern "C" int jattach(int pid, int argc, const char** argv, int print_output);
 
@@ -164,6 +168,10 @@ class String {
         return strcmp(_str, other._str) == 0;
     }
 
+    bool operator!=(const char* other) const {
+        return !operator==(other);
+    }
+
     String& operator<<(const char* tail) {
         size_t len = strlen(_str);
         _str = (char*)realloc(_str, len + strlen(tail) + 1);
@@ -205,6 +213,7 @@ static bool use_tmp_file = false;
 static int duration = 60;
 static int pid = 0;
 static volatile unsigned long long end_time;
+static unsigned int fdtransfer_timeout = DEFAULT_FDTRANSFER_TIMEOUT;  // gprofiler-specific: holds timeout value for fdtransfer command
 
 static void sigint_handler(int sig) {
     end_time = 0;
@@ -322,7 +331,7 @@ static int jps(const char* cmd, const char* app_name = NULL) {
     return pid;
 }
 
-static void run_fdtransfer(int pid, String& fdtransfer) {
+static void run_fdtransfer(int pid, String& fdtransfer, unsigned int timeout) {
     if (!FdTransferServer::supported() || fdtransfer == "") return;
 
     pid_t child = fork();
@@ -331,7 +340,7 @@ static void run_fdtransfer(int pid, String& fdtransfer) {
     }
 
     if (child == 0) {
-        exit(FdTransferServer::runOnce(pid, fdtransfer.str()) ? 0 : 1);
+        exit(FdTransferServer::runOnce(pid, fdtransfer.str(), timeout) ? 0 : 1);
     } else {
         int ret = wait_for_exit(child);
         if (ret != 0) {
@@ -371,7 +380,8 @@ int main(int argc, const char** argv) {
         String arg = args.next();
 
         if (arg == "start" || arg == "resume" || arg == "stop" || arg == "dump" || arg == "check" ||
-            arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect") {
+            arg == "status" || arg == "meminfo" || arg == "list" || arg == "collect" ||
+            arg == "fdtransfer") {
             action = arg;
 
         } else if (arg == "load" || arg == "jcmd" || arg == "threaddump" || arg == "dumpheap" || arg == "inspectheap") {
@@ -477,6 +487,12 @@ int main(int argc, const char** argv) {
             params << "," << (arg.str() + 2) << "=" << args.next();
             if (action == "collect") action = "start";
 
+        } else if (arg == "--fdtransfer-timeout") {
+            fdtransfer_timeout = atoi(args.next());
+
+        } else if (arg == "--fd-path") {
+            fdtransfer = String(args.next());
+
         } else if (arg == "--fdtransfer") {
             char buf[64];
             snprintf(buf, sizeof(buf), "@asprof-%d-%08x", getpid(), (unsigned int)time_micros());
@@ -518,7 +534,7 @@ int main(int argc, const char** argv) {
     setup_lib_path();
 
     if (action == "collect") {
-        run_fdtransfer(pid, fdtransfer);
+        run_fdtransfer(pid, fdtransfer, 0);
         run_jattach(pid, String("start,file=") << file << "," << output << format << params << ",log=" << logfile);
 
         fprintf(stderr, "Profiling for %d seconds\n", duration);
@@ -540,8 +556,15 @@ int main(int argc, const char** argv) {
         // Do not reset SIGTERM handler to allow graceful shutdown
 
         run_jattach(pid, String("stop,file=") << file << "," << output << format << ",log=" << logfile);
+    } else if (action == "fdtransfer") {
+        if (params != "") {
+            fprintf(stderr, "fdtransfer mode does not support parameters besides --fd-path and --fdtransfer-timeout");
+            return 1;
+        }
+        run_fdtransfer(pid, fdtransfer, fdtransfer_timeout);
+
     } else {
-        if (action == "start" || action == "resume") run_fdtransfer(pid, fdtransfer);
+        if (action == "start" || action == "resume") run_fdtransfer(pid, fdtransfer, 0);
         run_jattach(pid, String(action) << ",file=" << file << "," << output << format << params << ",log=" << logfile);
     }
 

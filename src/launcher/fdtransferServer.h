@@ -25,7 +25,7 @@ class FdTransferServer {
   public:
     static bool supported() { return true; }
 
-    static bool runOnce(int pid, const char *path);
+    static bool runOnce(int pid, const char *path, unsigned int timeout);
     static bool runLoop(const char *path);
 };
 
@@ -35,7 +35,7 @@ class FdTransferServer {
   public:
     static bool supported() { return false; }
 
-    static bool runOnce(int pid, const char *path) { return false; }
+    static bool runOnce(int pid, const char *path, unsigned int timeout) { return false; }
     static bool runLoop(const char *path) { return false; }
 };
 
