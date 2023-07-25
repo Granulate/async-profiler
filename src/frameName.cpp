@@ -103,6 +103,7 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
     _includemm = args._includemm;
+    _includeln = args._includeln;
     buildFilter(_include, args._buf, args._include);
     buildFilter(_exclude, args._buf, args._exclude);
 
@@ -183,6 +184,8 @@ void FrameName::javaMethodName(jmethodID method) {
     char* class_name = NULL;
     char* method_name = NULL;
     char* method_sig = NULL;
+    jvmtiLineNumberEntry* line_number_table = NULL;
+    jint entry_count = 0;
     jint modifiers = 0;
 
     jvmtiEnv* jvmti = VM::jvmti();
@@ -204,6 +207,13 @@ void FrameName::javaMethodName(jmethodID method) {
             _str.insert(0, modifiers_to_append);
         }
         _str.append(".").append(method_name);
+        if (_includeln) {
+            if (jvmti->GetLineNumberTable(method, &entry_count, &line_number_table) == 0) {
+                char buf[32];
+                sprintf(buf, ":%d", line_number_table[0].line_number);
+                _str.append(buf);
+            }
+        }
         if (_style & STYLE_SIGNATURES) {
             if (_style & STYLE_NO_SEMICOLON) {
                 for (char* s = method_sig; *s; s++) {
