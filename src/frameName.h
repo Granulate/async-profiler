@@ -76,6 +76,7 @@ class FrameName {
     ThreadMap& _thread_names;
     locale_t _saved_locale;
     bool _includemm;
+    bool _includeln;
 
     void buildFilter(std::vector<Matcher>& vector, const char* base, int offset);
     const char* decodeNativeSymbol(const char* name);
