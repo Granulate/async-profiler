@@ -144,6 +144,8 @@ class Profiler {
     void stopTimer();
     void timerLoop(void* timer_id);
     static void timerThreadEntry(jvmtiEnv* jvmti, JNIEnv* jni, void* arg);
+    void resetTrace();
+    void recycleTimeoutTimer(Arguments& args);
 
     void lockAll();
     void unlockAll();

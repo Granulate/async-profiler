@@ -109,6 +109,8 @@ static const Multiplier UNIVERSAL[] = {{'n', 1}, {'u', 1000}, {'m', 1000000}, {'
 //     title=TITLE      - FlameGraph title
 //     minwidth=PCT     - FlameGraph minimum frame width in percent
 //     reverse          - generate stack-reversed FlameGraph / Call tree
+//     includemm        - inclue method modifiers
+//     recycle          - recycle timeout timer (only: dump and status)
 //
 // It is possible to specify multiple dump options at the same time
 
@@ -373,6 +375,15 @@ Error Arguments::parse(const char* args) {
             CASE("includeln")
                 _includeln = true;
 
+            CASE("recycle")
+                _recycle = true;
+
+            CASE("resettrace")
+                _reset_trace = true;
+
+            CASE("dumpactive")
+                _dump_active = true;
+
             DEFAULT()
                 if (_unknown_arg == NULL) _unknown_arg = arg;
         }
@@ -398,6 +409,13 @@ Error Arguments::parse(const char* args) {
 
     if (_action == ACTION_NONE && _output != OUTPUT_NONE) {
         _action = ACTION_DUMP;
+    }
+
+    if (_recycle && _action != ACTION_DUMP && _action != ACTION_STATUS) {
+        return Error("Recycle argument only valid for actions: dump and status");
+    }
+    if (_recycle && _loop) {
+        return Error("Recycle argument doesn't support loop mode");
     }
 
     return Error::OK;
