@@ -122,7 +122,12 @@ build/$(LAUNCHER): src/launcher/* src/jattach/* src/fdtransfer.h
 	strip $@
 
 PROFILER_FLAGS=-static-libgcc
+
 ifeq ($(OS_TAG),linux-musl)
+  STATIC_LIBSTDCPP=1
+endif
+
+ifeq ($(STATIC_LIBSTDCPP),1)
   PROFILER_FLAGS+= -static-libstdc++
 endif
 
