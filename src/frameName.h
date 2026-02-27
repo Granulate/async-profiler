@@ -77,7 +77,7 @@ class FrameName {
 
   public:
     FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names,
-              std::string* thread_name_table = nullptr, int thread_name_table_size = 0);
+              std::string* thread_name_table = NULL, int thread_name_table_size = 0);
     ~FrameName();
 
     const char* name(ASGCT_CallFrame& frame, bool for_matching = false);
