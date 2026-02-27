@@ -319,10 +319,10 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             int name_idx = (combined >> 20) & 0xFFF;
             int tid = combined & 0xFFFFF;
 
-            const char* thread_name = nullptr;
+            const char* thread_name = NULL;
 
             // First try to get name from thread_name_table using name_idx
-            if (_thread_name_table != nullptr && name_idx > 0 && name_idx < _thread_name_table_size) {
+            if (_thread_name_table != NULL && name_idx > 0 && name_idx < _thread_name_table_size) {
                 const std::string& name = _thread_name_table[name_idx];
                 if (!name.empty()) {
                     thread_name = name.c_str();
@@ -330,7 +330,7 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             }
 
             // Fallback to looking up by tid
-            if (thread_name == nullptr) {
+            if (thread_name == NULL) {
                 MutexLocker ml(_thread_names_lock);
                 ThreadMap::iterator it = _thread_names.find(tid);
                 if (it != _thread_names.end()) {
@@ -339,12 +339,12 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
             }
 
             if (for_matching) {
-                return thread_name != nullptr ? thread_name : "";
+                return thread_name != NULL ? thread_name : "";
             }
 
             char buf[32];
             snprintf(buf, sizeof(buf), "tid=%d]", tid);
-            if (thread_name != nullptr) {
+            if (thread_name != NULL) {
                 return _str.assign("[").append(thread_name).append(" ").append(buf).c_str();
             } else {
                 return _str.assign("[").append(buf).c_str();
