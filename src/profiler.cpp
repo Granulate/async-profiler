@@ -687,7 +687,9 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     if (_add_thread_frame) {
-        num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, tid);
+        u16 name_idx = _thread_name_idx[tid % MAX_THREAD_NAME_IDX];
+        u32 thread_frame_id = ((u32)name_idx << 20) | (tid & 0xFFFFF);
+        num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, thread_frame_id);
     }
     if (_add_sched_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(0));
@@ -704,7 +706,9 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
     atomicInc(_total_samples);
 
     if (_add_thread_frame) {
-        num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, tid);
+        u16 name_idx = _thread_name_idx[tid % MAX_THREAD_NAME_IDX];
+        u32 thread_frame_id = ((u32)name_idx << 20) | (tid & 0xFFFFF);
+        num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, thread_frame_id);
     }
     if (_add_sched_frame) {
         num_frames += makeFrame(frames + num_frames, BCI_ERROR, OS::schedPolicy(tid));
@@ -895,6 +899,21 @@ void Profiler::setupSignalHandlers() {
 
 void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
     MutexLocker ml(_thread_names_lock);
+
+    // Track thread name changes by assigning new indices
+    int tid_idx = tid % MAX_THREAD_NAME_IDX;
+    u16 current_idx = _thread_name_idx[tid_idx];
+
+    // Check if the name has changed
+    bool name_changed = (current_idx == 0) ||
+                        (_thread_name_table[current_idx % MAX_NAME_TABLE_SIZE] != name);
+
+    if (name_changed && _next_name_idx < MAX_NAME_TABLE_SIZE) {
+        u16 new_idx = _next_name_idx++;
+        _thread_name_table[new_idx] = name;
+        _thread_name_idx[tid_idx] = new_idx;
+    }
+
     _thread_names[tid] = name;
     _thread_ids[tid] = java_thread_id;
 }
@@ -1187,9 +1206,15 @@ Error Profiler::start(Arguments& args, bool reset) {
     _start_time = time(NULL);
     _epoch++;
 
-    if (args._timeout != 0 || args._output == OUTPUT_JFR) {
+    if (args._timeout != 0 || args._output == OUTPUT_JFR || _update_thread_names) {
         _stop_time = addTimeout(_start_time, args._timeout);
         startTimer();
+    }
+
+    // Initial thread name update for per-sample tracking
+    if (_update_thread_names) {
+        updateJavaThreadNames();
+        updateNativeThreadNames();
     }
 
     return Error::OK;
@@ -1388,7 +1413,8 @@ void Profiler::switchThreadEvents(jvmtiEventMode mode) {
  * <frame>;<frame>;...;<topmost frame> <count>
  */
 void Profiler::dumpCollapsed(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style | STYLE_NO_SEMICOLON, _epoch, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_NO_SEMICOLON, _epoch, _thread_names_lock, _thread_names,
+                 _thread_name_table, MAX_NAME_TABLE_SIZE);
     char buf[32];
 
     std::vector<CallTraceSample*> samples;
@@ -1428,7 +1454,8 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
     FlameGraph flamegraph(args._title == NULL ? title : args._title, args._counter, args._minwidth, args._reverse);
 
     {
-        FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names);
+        FrameName fn(args, args._style & ~STYLE_ANNOTATE, _epoch, _thread_names_lock, _thread_names,
+                     _thread_name_table, MAX_NAME_TABLE_SIZE);
 
         std::vector<CallTraceSample*> samples;
         _call_trace_storage.collectSamples(samples);
@@ -1475,7 +1502,8 @@ void Profiler::dumpFlameGraph(std::ostream& out, Arguments& args, bool tree) {
 }
 
 void Profiler::dumpText(std::ostream& out, Arguments& args) {
-    FrameName fn(args, args._style | STYLE_DOTTED, _epoch, _thread_names_lock, _thread_names);
+    FrameName fn(args, args._style | STYLE_DOTTED, _epoch, _thread_names_lock, _thread_names,
+                 _thread_name_table, MAX_NAME_TABLE_SIZE);
     char buf[1024] = {0};
 
     std::vector<CallTraceSample> samples;
@@ -1637,7 +1665,7 @@ void Profiler::stopTimer() {
 void Profiler::timerLoop(void* timer_id) {
     u64 current_micros = OS::micros();
     u64 stop_micros = _stop_time * 1000000ULL;
-    u64 sleep_until = _jfr.active() ? current_micros + 1000000 : stop_micros;
+    u64 sleep_until = (_jfr.active() || _update_thread_names) ? current_micros + 1000000 : stop_micros;
 
     while (true) {
         {
@@ -1649,7 +1677,10 @@ void Profiler::timerLoop(void* timer_id) {
             if (_timer_id != timer_id) return;
         }
 
-        if ((current_micros = OS::micros()) >= stop_micros) {
+        current_micros = OS::micros();
+
+        // Check if we need to stop (only if timeout was set)
+        if (_stop_time > 0 && current_micros >= stop_micros) {
             restart(_global_args);
             return;
         }
@@ -1658,6 +1689,12 @@ void Profiler::timerLoop(void* timer_id) {
         if (need_switch_chunk) {
             // Flush under profiler state lock
             flushJfr();
+        }
+
+        // Update thread names periodically for per-sample tracking
+        if (_update_thread_names) {
+            updateJavaThreadNames();
+            updateNativeThreadNames();
         }
 
         sleep_until = current_micros + 1000000;

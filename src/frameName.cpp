@@ -89,7 +89,8 @@ bool Matcher::matches(const char* s) {
 
 JMethodCache FrameName::_cache;
 
-FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names) :
+FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names,
+                     std::string* thread_name_table, int thread_name_table_size) :
     _class_names(),
     _include(),
     _exclude(),
@@ -98,7 +99,9 @@ FrameName::FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_
     _cache_epoch((unsigned char)epoch),
     _cache_max_age(args._mcache),
     _thread_names_lock(thread_names_lock),
-    _thread_names(thread_names)
+    _thread_names(thread_names),
+    _thread_name_table(thread_name_table),
+    _thread_name_table_size(thread_name_table_size)
 {
     // Require printf to use standard C format regardless of system locale
     _saved_locale = uselocale(newlocale(LC_NUMERIC_MASK, "C", (locale_t)0));
@@ -311,17 +314,38 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         }
 
         case BCI_THREAD_ID: {
-            int tid = (int)(uintptr_t)frame.method_id;
-            MutexLocker ml(_thread_names_lock);
-            ThreadMap::iterator it = _thread_names.find(tid);
+            // Decode combined format: (name_idx << 20) | tid
+            u32 combined = (u32)(uintptr_t)frame.method_id;
+            int name_idx = (combined >> 20) & 0xFFF;
+            int tid = combined & 0xFFFFF;
+
+            const char* thread_name = NULL;
+
+            // First try to get name from thread_name_table using name_idx
+            if (_thread_name_table != NULL && name_idx > 0 && name_idx < _thread_name_table_size) {
+                const std::string& name = _thread_name_table[name_idx];
+                if (!name.empty()) {
+                    thread_name = name.c_str();
+                }
+            }
+
+            // Fallback to looking up by tid
+            if (thread_name == NULL) {
+                MutexLocker ml(_thread_names_lock);
+                ThreadMap::iterator it = _thread_names.find(tid);
+                if (it != _thread_names.end()) {
+                    thread_name = it->second.c_str();
+                }
+            }
+
             if (for_matching) {
-                return it != _thread_names.end() ? it->second.c_str() : "";
+                return thread_name != NULL ? thread_name : "";
             }
 
             char buf[32];
             snprintf(buf, sizeof(buf), "tid=%d]", tid);
-            if (it != _thread_names.end()) {
-                return _str.assign("[").append(it->second).append(" ").append(buf).c_str();
+            if (thread_name != NULL) {
+                return _str.assign("[").append(thread_name).append(" ").append(buf).c_str();
             } else {
                 return _str.assign("[").append(buf).c_str();
             }

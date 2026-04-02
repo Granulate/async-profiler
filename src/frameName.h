@@ -63,6 +63,8 @@ class FrameName {
     unsigned char _cache_max_age;
     Mutex& _thread_names_lock;
     ThreadMap& _thread_names;
+    std::string* _thread_name_table;
+    int _thread_name_table_size;
     locale_t _saved_locale;
     bool _includemm;
     bool _includeln;
@@ -74,7 +76,8 @@ class FrameName {
     void javaClassName(const char* symbol, size_t length, int style);
 
   public:
-    FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names);
+    FrameName(Arguments& args, int style, int epoch, Mutex& thread_names_lock, ThreadMap& thread_names,
+              std::string* thread_name_table = NULL, int thread_name_table_size = 0);
     ~FrameName();
 
     const char* name(ASGCT_CallFrame& frame, bool for_matching = false);

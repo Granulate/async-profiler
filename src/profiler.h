@@ -8,6 +8,8 @@
 
 #include <iostream>
 #include <map>
+#include <string>
+#include <string.h>
 #include <time.h>
 #include "arch.h"
 #include "arguments.h"
@@ -86,6 +88,14 @@ class Profiler {
     bool _add_sched_frame;
     bool _update_thread_names;
     volatile jvmtiEventMode _thread_events_state;
+
+    // Per-thread name index for tracking thread renames
+    // Updated by timer thread, read by signal handler
+    static const int MAX_THREAD_NAME_IDX = 65536;
+    static const int MAX_NAME_TABLE_SIZE = 4096;
+    volatile u16 _thread_name_idx[MAX_THREAD_NAME_IDX];  // tid -> name index
+    std::string _thread_name_table[MAX_NAME_TABLE_SIZE]; // index -> name string
+    u32 _next_name_idx;
 
     SpinLock _stubs_lock;
     CodeCache _runtime_stubs;
@@ -170,11 +180,13 @@ class Profiler {
         _native_libs(),
         _call_stub_begin(NULL),
         _call_stub_end(NULL),
-        _dlopen_entry(NULL) {
+        _dlopen_entry(NULL),
+        _next_name_idx(1) {
 
         for (int i = 0; i < CONCURRENCY_LEVEL; i++) {
             _calltrace_buffer[i] = NULL;
         }
+        memset((void*)_thread_name_idx, 0, sizeof(_thread_name_idx));
     }
 
     static Profiler* instance() {
