@@ -90,10 +90,10 @@ class Profiler {
     volatile jvmtiEventMode _thread_events_state;
 
     // Per-thread name index for tracking thread renames
-    // Updated by timer thread, read by signal handler
+    // Updated by timer thread, read by signal handler (via atomic builtins)
     static const int MAX_THREAD_NAME_IDX = 65536;
     static const int MAX_NAME_TABLE_SIZE = 4096;
-    volatile u16 _thread_name_idx[MAX_THREAD_NAME_IDX];  // tid -> name index
+    u16 _thread_name_idx[MAX_THREAD_NAME_IDX];  // tid -> name index
     std::string _thread_name_table[MAX_NAME_TABLE_SIZE]; // index -> name string
     u32 _next_name_idx;
 
@@ -162,6 +162,13 @@ class Profiler {
     static Profiler* const _instance;
 
   public:
+    // Thread frame encoding: (name_idx << TID_BITS) | (tid & TID_MASK) in a u32
+    // TID uses 20 bits (max ~1M). Linux pid_max can be up to 4M on 64-bit, so high
+    // tids will alias. This is acceptable since aliasing only affects name tracking.
+    // name_idx uses the remaining 12 bits (max 4096).
+    static const int TID_BITS = 20;
+    static const u32 TID_MASK = (1u << TID_BITS) - 1;
+
     Profiler() :
         _state(NEW),
         _begin_trap(2),
