@@ -314,10 +314,10 @@ const char* FrameName::name(ASGCT_CallFrame& frame, bool for_matching) {
         }
 
         case BCI_THREAD_ID: {
-            // Decode combined format: (name_idx << 20) | tid
+            // Decode combined format: (name_idx << TID_BITS) | (tid & TID_MASK)
             u32 combined = (u32)(uintptr_t)frame.method_id;
-            int name_idx = (combined >> 20) & 0xFFF;
-            int tid = combined & 0xFFFFF;
+            int name_idx = combined >> Profiler::TID_BITS;
+            int tid = combined & Profiler::TID_MASK;
 
             const char* thread_name = NULL;
 

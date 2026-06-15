@@ -687,8 +687,8 @@ u64 Profiler::recordSample(void* ucontext, u64 counter, EventType event_type, Ev
     }
 
     if (_add_thread_frame) {
-        u16 name_idx = _thread_name_idx[tid % MAX_THREAD_NAME_IDX];
-        u32 thread_frame_id = ((u32)name_idx << 20) | (tid & 0xFFFFF);
+        u16 name_idx = __atomic_load_n(&_thread_name_idx[tid % MAX_THREAD_NAME_IDX], __ATOMIC_RELAXED);
+        u32 thread_frame_id = ((u32)name_idx << TID_BITS) | (tid & TID_MASK);
         num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, thread_frame_id);
     }
     if (_add_sched_frame) {
@@ -706,8 +706,8 @@ void Profiler::recordExternalSample(u64 counter, int tid, EventType event_type, 
     atomicInc(_total_samples);
 
     if (_add_thread_frame) {
-        u16 name_idx = _thread_name_idx[tid % MAX_THREAD_NAME_IDX];
-        u32 thread_frame_id = ((u32)name_idx << 20) | (tid & 0xFFFFF);
+        u16 name_idx = __atomic_load_n(&_thread_name_idx[tid % MAX_THREAD_NAME_IDX], __ATOMIC_RELAXED);
+        u32 thread_frame_id = ((u32)name_idx << TID_BITS) | (tid & TID_MASK);
         num_frames += makeFrame(frames + num_frames, BCI_THREAD_ID, thread_frame_id);
     }
     if (_add_sched_frame) {
@@ -902,16 +902,25 @@ void Profiler::setThreadInfo(int tid, const char* name, jlong java_thread_id) {
 
     // Track thread name changes by assigning new indices
     int tid_idx = tid % MAX_THREAD_NAME_IDX;
-    u16 current_idx = _thread_name_idx[tid_idx];
+    u16 current_idx = __atomic_load_n(&_thread_name_idx[tid_idx], __ATOMIC_RELAXED);
 
     // Check if the name has changed
     bool name_changed = (current_idx == 0) ||
                         (_thread_name_table[current_idx % MAX_NAME_TABLE_SIZE] != name);
 
-    if (name_changed && _next_name_idx < MAX_NAME_TABLE_SIZE) {
-        u16 new_idx = _next_name_idx++;
-        _thread_name_table[new_idx] = name;
-        _thread_name_idx[tid_idx] = new_idx;
+    if (name_changed) {
+        if (_next_name_idx < MAX_NAME_TABLE_SIZE) {
+            u16 new_idx = _next_name_idx++;
+            _thread_name_table[new_idx] = name;
+            __atomic_store_n(&_thread_name_idx[tid_idx], new_idx, __ATOMIC_RELEASE);
+        } else {
+            static bool warned = false;
+            if (!warned) {
+                warned = true;
+                Log::warn("Thread name table full (%d entries), new thread renames will not be tracked",
+                          MAX_NAME_TABLE_SIZE);
+            }
+        }
     }
 
     _thread_names[tid] = name;
